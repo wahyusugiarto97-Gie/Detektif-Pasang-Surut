@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Misi Langit 4: Detektif Pasang Surut</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['Space Mono', 'monospace'] },
+                    colors: {
+                        navy: '#0B132B', ocean: '#1C2541', tealish: '#3A506B', 
+                        cyan: '#5BC0BE', light: '#FFFFFF', accent: '#F9C80E', danger: '#FF6B6B'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0B132B;
+            background-image: radial-gradient(circle at 20% 50%, rgba(28, 37, 65, 0.6) 0%, transparent 50%),
+                              radial-gradient(circle at 80% 30%, rgba(91, 192, 190, 0.15) 0%, transparent 50%);
+            color: #FFFFFF;
+            overflow-x: hidden;
+            touch-action: manipulation; /* Optimasi mobile touch */
+        }
+        
+        /* Navigasi Layar (Transisi Cepat) */
+        .screen { display: none; opacity: 0; }
+        .screen.active { display: flex; opacity: 1; animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* Kartu Desain */
+        .card-detective {
+            background: rgba(28, 37, 65, 0.85);
+            border: 1px solid rgba(91, 192, 190, 0.3);
+            border-radius: 1rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+        }
+        .data-font { font-family: 'Space Mono', monospace; }
+
+        /* Tombol */
+        .btn-primary {
+            background: linear-gradient(135deg, #5BC0BE, #3A506B);
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+        .btn-primary:active { transform: scale(0.96); }
+        .btn-primary:hover:not(:disabled) { box-shadow: 0 4px 15px rgba(91, 192, 190, 0.5); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .btn-secondary {
+            background: transparent; border: 2px solid #5BC0BE; color: #5BC0BE; transition: all 0.2s;
+        }
+        .btn-secondary:active { transform: scale(0.96); }
+        .btn-secondary:hover:not(:disabled) { background: rgba(91, 192, 190, 0.15); }
+
+        /* Matching Game Refined */
+        .match-card {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer; user-select: none;
+            border: 2px solid #3A506B;
+        }
+        .match-card:hover:not(.matched) { border-color: #5BC0BE; background-color: rgba(91, 192, 190, 0.1); }
+        .match-card.selected {
+            border-color: #F9C80E; background-color: rgba(249, 200, 14, 0.15);
+            transform: scale(1.05); box-shadow: 0 0 15px rgba(249, 200, 14, 0.4);
+        }
+        .match-card.matched {
+            border-color: #5BC0BE; background-color: rgba(91, 192, 190, 0.2); color: #5BC0BE;
+            pointer-events: none; opacity: 0.7; transform: scale(0.98);
+        }
+        .match-card.wrong {
+            border-color: #FF6B6B; background-color: rgba(255, 107, 107, 0.15); color: #FF6B6B;
+            animation: shake 0.3s ease-in-out;
+        }
+        
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+        /* Modal Notif - Instan & Fast */
+        #notification-box {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95);
+            opacity: 0; pointer-events: none; transition: all 0.15s ease-out; z-index: 100;
+        }
+        #notification-box.show { transform: translate(-50%, -50%) scale(1); opacity: 1; pointer-events: auto; }
+        
+        #modal-overlay { transition: opacity 0.15s ease-out; }
+
+        /* Animasi Gelombang */
+        .wave-container { overflow: hidden; position: relative; width: 100%; height: 100px; }
+        .wave {
+            position: absolute; bottom: 0; left: 0; width: 200%; height: 100%;
+            background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 800 100" xmlns="http://www.w3.org/2000/svg"><path d="M0,50 Q100,0 200,50 T400,50 T600,50 T800,50 L800,100 L0,100 Z" fill="rgba(91,192,190,0.6)"/></svg>') repeat-x;
+            background-size: 50% 100%; animation: waveMove 3s linear infinite; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: bottom;
+        }
+        @keyframes waveMove { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+        /* Tap and Place (DnD) */
+        .drop-zone { transition: all 0.2s; border: 2px dashed #3A506B; }
+        .drop-zone.highlight { border-color: #F9C80E; background: rgba(249, 200, 14, 0.1); animation: pulseZone 1s infinite; }
+        @keyframes pulseZone { 0%, 100% { background: rgba(249, 200, 14, 0.1); } 50% { background: rgba(249, 200, 14, 0.2); } }
+        
+        .drag-card { cursor: pointer; transition: transform 0.1s; }
+        .drag-card.active-drag { border-color: #F9C80E; transform: scale(1.1) translateY(-5px); box-shadow: 0 10px 20px rgba(249, 200, 14, 0.4); z-index: 10; position: relative; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen text-base">
+
+    <header class="bg-ocean border-b border-tealish sticky top-0 z-50 shadow-md">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex justify-between items-center mb-2">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-rocket text-cyan text-lg"></i>
+                    <h1 class="font-bold tracking-wider text-sm md:text-base uppercase">Misi Langit 4</h1>
+                </div>
+                <div class="flex gap-1 md:gap-2">
+                    <button onclick="nav.goto(0)" class="p-2 text-cyan hover:bg-tealish/30 rounded transition" title="Beranda"><i class="fa-solid fa-house"></i></button>
+                    <button onclick="ui.showModal('modal-peta')" class="p-2 text-cyan hover:bg-tealish/30 rounded transition" title="Peta Misi"><i class="fa-solid fa-map"></i></button>
+                    <button onclick="ui.showModal('modal-petunjuk')" class="p-2 text-cyan hover:bg-tealish/30 rounded transition" title="Petunjuk"><i class="fa-solid fa-book"></i></button>
+                    <button onclick="ui.showModal('modal-reset')" class="p-2 text-danger hover:bg-danger/20 rounded transition" title="Reset"><i class="fa-solid fa-rotate-right"></i></button>
+                </div>
+            </div>
+            
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center text-xs md:text-sm text-gray-400 gap-2">
+                <div id="breadcrumb" class="flex gap-2 items-center">
+                    Beranda <i class="fa-solid fa-chevron-right text-[10px]"></i> Detektif Pasang Surut
+                </div>
+                <div class="flex items-center gap-3 w-full md:w-auto">
+                    <span>Misi 4 dari 4</span>
+                    <div class="flex-1 md:w-48 flex items-center justify-between relative mx-2">
+                        <div class="absolute left-0 right-0 h-1 bg-tealish z-0 top-1/2 -translate-y-1/2 rounded"></div>
+                        <div id="progress-line" class="absolute left-0 h-1 bg-cyan z-0 top-1/2 -translate-y-1/2 transition-all duration-300 rounded" style="width: 0%"></div>
+                    </div>
+                    <span id="score-display" class="font-bold text-accent bg-slate-800 px-2 py-1 rounded border border-tealish">0 PTS</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto px-4 py-6 flex flex-col items-center justify-center relative">
+        
+        <!-- Screen 0: Pembuka -->
+        <section id="screen-0" class="screen flex-col items-center text-center max-w-3xl w-full my-auto">
+            <div class="text-6xl mb-6 drop-shadow-[0_0_15px_rgba(91,192,190,0.5)]">🌊🕵️‍♂️📊</div>
+            <h2 class="text-3xl md:text-5xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-cyan to-blue-300 leading-tight">DETEKTIF PASANG SURUT LAUT</h2>
+            <p class="text-lg md:text-xl text-gray-300 mb-8 italic">"Laut meninggalkan jejak. Bisakah kamu menemukan polanya?"</p>
+            <div class="card-detective p-6 md:p-8 mb-8 w-full max-w-md mx-auto">
+                <button onclick="nav.next()" class="btn-primary w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-magnifying-glass"></i> MULAI INVESTIGASI
+                </button>
+            </div>
+        </section>
+
+        <!-- Screen 1: Briefing -->
+        <section id="screen-1" class="screen flex-col max-w-3xl w-full">
+            <div class="card-detective p-6 md:p-8">
+                <div class="flex items-center gap-4 mb-6 border-b border-tealish pb-4">
+                    <div class="w-12 h-12 rounded-full bg-cyan flex items-center justify-center text-ocean text-2xl shadow-lg"><i class="fa-solid fa-folder-open"></i></div>
+                    <h2 class="text-2xl font-bold uppercase tracking-wider">Case Briefing</h2>
+                </div>
+                <div class="prose prose-invert max-w-none mb-8 text-gray-200">
+                    <p class="text-lg mb-4">Selamat datang, <strong>Detektif Pasang Surut</strong>.</p>
+                    <p class="mb-4">Tim observasi laut telah mengumpulkan data perubahan tinggi muka air dari waktu ke waktu. Data ini belum dianalisis. Polanya masih tersembunyi.</p>
+                    <p class="mb-6">Tugasmu adalah menggunakan bukti yang tersedia—data tinggi air, fase Bulan, dan posisi Matahari—untuk memecahkan kasus ini.</p>
+                    
+                    <h3 class="text-cyan font-bold text-lg mb-3"><i class="fa-solid fa-bullseye mr-2"></i>Target Investigasi:</h3>
+                    <ul class="list-none space-y-3 bg-slate-800/50 p-4 rounded-lg border border-tealish/50">
+                        <li><i class="fa-solid fa-check text-green-400 mr-2"></i>Membaca grafik pasang surut.</li>
+                        <li><i class="fa-solid fa-check text-green-400 mr-2"></i>Menentukan kondisi pasang atau surut berdasarkan tren.</li>
+                        <li><i class="fa-solid fa-check text-green-400 mr-2"></i>Menghubungkan pola pasang-surut dengan fase Bulan.</li>
+                        <li><i class="fa-solid fa-check text-green-400 mr-2"></i>Membedakan Spring Tide dan Neap Tide.</li>
+                        <li><i class="fa-solid fa-check text-green-400 mr-2"></i>Mengambil keputusan berbasis data.</li>
+                    </ul>
+                </div>
+                <button onclick="nav.next()" class="btn-primary w-full py-4 rounded-xl font-bold text-lg">LANJUT KE KUIS PEMANTIK <i class="fa-solid fa-arrow-right ml-2"></i></button>
+            </div>
+        </section>
+
+        <section id="screen-2" class="screen flex-col max-w-3xl w-full">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl md:text-3xl font-bold text-accent mb-2"><i class="fa-regular fa-circle-question mr-2"></i> APA YANG SUDAH KAMU KETAHUI?</h2>
+                <p class="text-gray-400 text-sm">Kuis ini untuk mengecek pengetahuan awalmu. Tidak memengaruhi skor akhir.</p>
+            </div>
+            
+            <div id="diagnostic-quiz" class="space-y-4 mb-8">
+                <!-- Dimuat via JS -->
+            </div>
+            
+            <button id="btn-diagnostic-submit" onclick="game.submitDiagnostic()" class="btn-primary w-full py-4 rounded-xl font-bold text-lg hidden transition-all">SIMPAN & MASUK RUANG DETEKTIF</button>
+        </section>
+
+        <!-- Screen 3: Dashboard Ruang Detektif -->
+        <section id="screen-3" class="screen flex-col w-full max-w-4xl">
+            <div class="text-center mb-10">
+                <h2 class="text-3xl md:text-4xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan to-white"><i class="fa-solid fa-building-shield text-cyan mr-2"></i> Ruang Detektif</h2>
+                <p class="text-gray-400 mt-2">Pusat Analisis Data Observasi Laut</p>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-ocean border border-cyan p-4 rounded-xl flex flex-col items-center text-center shadow-[0_0_15px_rgba(91,192,190,0.2)]">
+                    <i class="fa-solid fa-chart-line text-3xl text-cyan mb-2"></i><span class="font-bold text-sm">Data Laut</span>
+                </div>
+                <div class="bg-slate-800 border border-tealish p-4 rounded-xl flex flex-col items-center text-center">
+                    <i class="fa-solid fa-moon text-3xl text-gray-300 mb-2"></i><span class="font-bold text-sm">Fase Bulan</span>
+                </div>
+                <div class="bg-slate-800 border border-tealish p-4 rounded-xl flex flex-col items-center text-center">
+                    <i class="fa-solid fa-sun text-3xl text-yellow-400 mb-2"></i><span class="font-bold text-sm">Matahari</span>
+                </div>
+                <div class="bg-slate-800 border border-tealish p-4 rounded-xl flex flex-col items-center text-center">
+                    <i class="fa-solid fa-magnifying-glass text-3xl text-accent mb-2"></i><span class="font-bold text-sm">Petunjuk</span>
+                </div>
+            </div>
+
+            <div class="card-detective p-6 border-l-4 border-l-accent flex flex-col md:flex-row items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-xl md:text-2xl font-bold text-white mb-1">Kasus #01 — Misteri Tinggi Muka Laut</h3>
+                    <p class="text-accent text-sm font-bold bg-accent/10 px-2 py-1 rounded inline-block">STATUS: TERSEDIA</p>
+                </div>
+                <button onclick="nav.next()" class="btn-primary px-8 py-3 rounded-lg font-bold w-full md:w-auto">BUKA KASUS</button>
+            </div>
+        </section>
+
+        <section id="screen-4" class="screen flex-col w-full max-w-4xl">
+            <div class="flex justify-between items-end mb-4">
+                <h2 class="text-xl md:text-2xl font-bold"><i class="fa-solid fa-chart-area text-cyan mr-2"></i> INVESTIGASI 1: Membaca Jejak Laut</h2>
+                <div class="bg-yellow-900/40 border border-yellow-500/50 text-yellow-200 text-[10px] md:text-xs px-2 py-1 rounded hidden md:block">⚠️ DATA SIMULASI PEMBELAJARAN</div>
+            </div>
+
+            <div class="card-detective p-4 md:p-6 mb-6">
+                <h3 class="text-center font-bold mb-4 text-gray-200">Grafik Tinggi Muka Laut (24 Jam)</h3>
+                <!-- Grafik Interaktif -->
+                <div class="w-full h-64 relative bg-ocean rounded-lg border border-tealish p-2 md:p-4" id="chart-container">
+                    <svg id="tide-chart" width="100%" height="100%" class="overflow-visible absolute inset-0 z-0"></svg>
+                    <!-- Tooltip untuk sentuhan/hover -->
+                    <div id="chart-tooltip" class="absolute hidden bg-slate-900 border border-cyan p-2 rounded text-sm shadow-xl pointer-events-none z-10 data-font transform -translate-x-1/2 -translate-y-full mt-[-10px] whitespace-nowrap">
+                        <div class="font-bold text-cyan" id="tt-time">-</div>
+                        <div id="tt-height" class="text-white">-</div>
+                        <div id="tt-status" class="text-accent mt-1 text-xs font-bold">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-4">
+                <!-- Interaksi 1: Pilih Titik -->
+                <div id="task-chart-1" class="card-detective p-5 border-l-4 border-l-accent transition-all duration-300 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="font-bold text-accent">1. Observasi Titik (10 Poin)</h4>
+                        </div>
+                        <p class="mb-4 text-sm">Klik/sentuh titik pada grafik di atas. Temukan data pada jam <strong class="text-cyan px-1 bg-cyan/10 rounded">15.00</strong>.</p>
+                    </div>
+                    <div>
+                        <div id="obs-result" class="data-font bg-ocean p-3 rounded border border-tealish w-full text-center text-sm text-gray-400 mb-3">Belum ada titik dipilih</div>
+                        <button id="btn-confirm-obs" onclick="game.checkObservation()" class="btn-secondary w-full py-2 rounded font-bold" disabled>KONFIRMASI TITIK</button>
+                    </div>
+                </div>
+
+                <!-- Interaksi 2: Arah Tren -->
+                <div id="task-chart-2" class="card-detective p-5 border-l-4 border-l-cyan opacity-40 pointer-events-none transition-all duration-300 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="font-bold text-cyan">2. Analisis Tren (10 Poin)</h4>
+                        </div>
+                        <p class="mb-4 text-sm">Berdasarkan grafik, pada rentang <strong>09.00 hingga 15.00</strong>, bagaimana pergerakan laut?</p>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <button onclick="game.checkTrend('pasang')" class="bg-ocean border border-tealish hover:border-cyan hover:bg-cyan/10 p-3 rounded-lg transition flex items-center justify-between text-sm group">
+                            <span class="font-bold">Menuju Pasang</span> <i class="fa-solid fa-arrow-trend-up text-cyan group-hover:scale-125 transition"></i>
+                        </button>
+                        <button onclick="game.checkTrend('surut')" class="bg-ocean border border-tealish hover:border-danger hover:bg-danger/10 p-3 rounded-lg transition flex items-center justify-between text-sm group">
+                            <span class="font-bold">Menuju Surut</span> <i class="fa-solid fa-arrow-trend-down text-danger group-hover:scale-125 transition"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <button id="btn-next-chart" onclick="nav.next()" class="btn-primary w-full py-4 rounded-xl mt-6 hidden font-bold text-lg shadow-lg shadow-cyan/20">LANJUTKAN INVESTIGASI</button>
+        </section>
+
+        <section id="screen-5" class="screen flex-col w-full max-w-4xl relative">
+            <h2 class="text-xl md:text-2xl font-bold mb-2"><i class="fa-solid fa-puzzle-piece text-cyan mr-2"></i> INVESTIGASI 2: Menyusun Bukti Pola</h2>
+            <p class="mb-4 text-gray-300 text-sm md:text-base">Klik kartu di kiri, lalu klik pasangannya di kanan. (Benar = +5 Poin)</p>
+            
+            <div class="card-detective p-4 md:p-8 relative w-full overflow-hidden">
+                <!-- SVG layer khusus untuk garis (Absolute Positioning) -->
+                <svg id="match-lines" class="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible"></svg>
+                
+                <div class="grid grid-cols-2 gap-4 md:gap-24 relative z-10 w-full" id="match-container">
+                    <!-- Kolom A -->
+                    <div class="flex flex-col gap-3" id="match-col-a"></div>
+                    <!-- Kolom B -->
+                    <div class="flex flex-col gap-3" id="match-col-b"></div>
+                </div>
+            </div>
+            
+            <button id="btn-next-match" onclick="nav.next()" class="btn-primary w-full py-4 rounded-xl mt-6 hidden font-bold text-lg shadow-lg shadow-cyan/20">LANJUTKAN</button>
+        </section>
+
+        <section id="screen-6" class="screen flex-col w-full max-w-3xl">
+            <h2 class="text-xl md:text-2xl font-bold mb-2"><i class="fa-solid fa-scale-balanced text-cyan mr-2"></i> INVESTIGASI 3: Uji Fakta</h2>
+            <p class="mb-6 text-gray-300 text-sm">Seorang detektif harus bisa membedakan fakta dan mitos laut. (+3 Poin per Fakta)</p>
+            
+            <div class="card-detective p-6 md:p-8 mb-6 relative overflow-hidden shadow-lg shadow-slate-900">
+                <div class="absolute top-0 left-0 w-full h-1 bg-tealish"><div id="tf-bar" class="h-full bg-accent transition-all duration-300" style="width:0%"></div></div>
+                <div class="text-right text-xs text-accent mb-4 font-bold tracking-widest" id="tf-progress">FAKTA 1 / 5</div>
+                
+                <div class="min-h-[160px] flex items-center justify-center mb-6 bg-slate-900/50 p-6 rounded-xl border border-tealish/30">
+                    <p id="tf-statement" class="text-xl md:text-2xl font-bold text-center leading-relaxed">Memuat pernyataan...</p>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="game.answerTF(true)" class="bg-ocean border-2 border-green-500/50 hover:bg-green-500/20 text-green-400 py-4 rounded-xl font-bold text-lg transition active:scale-95 flex items-center justify-center gap-2 shadow-md"><i class="fa-solid fa-check"></i> BENAR</button>
+                    <button onclick="game.answerTF(false)" class="bg-ocean border-2 border-red-500/50 hover:bg-red-500/20 text-red-400 py-4 rounded-xl font-bold text-lg transition active:scale-95 flex items-center justify-center gap-2 shadow-md"><i class="fa-solid fa-xmark"></i> SALAH</button>
+                </div>
+            </div>
+            <button id="btn-next-tf" onclick="nav.next()" class="btn-primary w-full py-4 rounded-xl hidden font-bold text-lg shadow-lg shadow-cyan/20">LANJUTKAN</button>
+        </section>
+
+        <section id="screen-7" class="screen flex-col w-full max-w-4xl">
+            <div class="flex justify-between items-end mb-2">
+                <h2 class="text-xl md:text-2xl font-bold"><i class="fa-solid fa-timeline text-cyan mr-2"></i> INVESTIGASI 4: Pola Waktu</h2>
+                <div class="bg-yellow-900/40 text-yellow-200 text-[10px] md:text-xs px-2 py-1 rounded hidden md:block">⚠️ DATA SIMULASI</div>
+            </div>
+            <p class="mb-6 text-gray-300 text-sm">Klik kartu grafik di bawah, lalu klik kotak area kosong di hari yang tepat. (15 Poin)</p>
+            
+            <!-- Area Timeline Target -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+                <div class="bg-ocean/80 rounded-lg p-3 text-center border-t-4 border-t-cyan relative shadow-md">
+                    <div class="font-bold text-accent text-sm mb-1">HARI 1</div><div class="text-xs text-gray-400 mb-2">Baru 🌑</div>
+                    <div id="drop-1" class="drop-zone w-full h-20 rounded flex items-center justify-center text-xs text-gray-500" onclick="game.placeCard(1)">Area Kosong</div>
+                </div>
+                <div class="bg-ocean/80 rounded-lg p-3 text-center border-t-4 border-t-gray-400 relative shadow-md">
+                    <div class="font-bold text-accent text-sm mb-1">HARI 8</div><div class="text-xs text-gray-400 mb-2">Perbani 🌓</div>
+                    <div id="drop-2" class="drop-zone w-full h-20 rounded flex items-center justify-center text-xs text-gray-500" onclick="game.placeCard(2)">Area Kosong</div>
+                </div>
+                <div class="bg-ocean/80 rounded-lg p-3 text-center border-t-4 border-t-white relative shadow-md">
+                    <div class="font-bold text-accent text-sm mb-1">HARI 15</div><div class="text-xs text-gray-400 mb-2">Purnama 🌕</div>
+                    <div id="drop-3" class="drop-zone w-full h-20 rounded flex items-center justify-center text-xs text-gray-500" onclick="game.placeCard(3)">Area Kosong</div>
+                </div>
+                <div class="bg-ocean/80 rounded-lg p-3 text-center border-t-4 border-t-gray-400 relative shadow-md">
+                    <div class="font-bold text-accent text-sm mb-1">HARI 22</div><div class="text-xs text-gray-400 mb-2">Perbani 🌗</div>
+                    <div id="drop-4" class="drop-zone w-full h-20 rounded flex items-center justify-center text-xs text-gray-500" onclick="game.placeCard(4)">Area Kosong</div>
+                </div>
+            </div>
+
+            <!-- Sumber Kartu -->
+            <div class="card-detective p-4 border-dashed border-2 border-tealish text-center bg-slate-900/50">
+                <h3 class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-widest">Kumpulan Bukti Grafik (Klik untuk Memilih)</h3>
+                <div class="flex flex-wrap justify-center gap-4" id="drag-sources">
+                    <!-- Dimuat via JS -->
+                </div>
+            </div>
+
+            <button id="btn-next-dnd" onclick="nav.next()" class="btn-primary w-full py-4 rounded-xl mt-6 hidden font-bold text-lg shadow-lg shadow-cyan/20">ANALISIS BERIKUTNYA</button>
+        </section>
+
+        <section id="screen-8" class="screen flex-col w-full max-w-3xl">
+            <h2 class="text-xl md:text-2xl font-bold mb-4"><i class="fa-solid fa-list-check text-cyan mr-2"></i> INVESTIGASI 5: Interogasi Data</h2>
+            <div id="pg-container" class="card-detective p-6 md:p-8 mb-6 min-h-[350px] flex flex-col justify-center relative">
+                <div class="text-right text-xs text-cyan mb-4 font-bold tracking-widest" id="pg-progress">PERTANYAAN 1 / 4</div>
+                <div id="pg-question-area" class="mb-6 text-lg md:text-xl font-bold leading-relaxed">Memuat pertanyaan...</div>
+                <div id="pg-options" class="flex flex-col gap-3">
+                    <!-- Dimuat via JS -->
+                </div>
+            </div>
+            <button id="btn-next-pg" onclick="nav.next()" class="btn-primary w-full py-4 rounded-xl hidden font-bold text-lg shadow-lg shadow-cyan/20">BUKA SIMULATOR</button>
+        </section>
+
+        <section id="screen-9" class="screen flex-col w-full max-w-5xl">
+            <div class="flex justify-between items-end mb-4">
+                <h2 class="text-xl md:text-2xl font-bold"><i class="fa-solid fa-desktop text-cyan mr-2"></i> INVESTIGASI 6: Simulator Kasus</h2>
+                <div class="bg-yellow-900/40 border border-yellow-500/50 text-yellow-200 text-[10px] md:text-xs px-2 py-1 rounded hidden md:block">⚠️ DATA SIMULASI</div>
+            </div>
+
+            <div class="flex flex-col lg:flex-row gap-6 mb-6">
+                <!-- Panel Simulator -->
+                <div class="card-detective p-5 flex-1 flex flex-col border-t-4 border-t-cyan">
+                    <h3 class="font-bold text-center text-gray-300 mb-4 text-sm uppercase tracking-wider">Panel Pengendali Fase</h3>
+                    <div class="flex justify-center gap-2 mb-6">
+                        <button onclick="game.simulatePhase('baru', this)" class="sim-btn bg-ocean px-3 py-2 border border-tealish rounded-lg hover:bg-tealish/30 transition flex flex-col items-center flex-1">
+                            <span class="text-2xl mb-1">🌑</span><span class="text-xs font-bold">Baru</span>
+                        </button>
+                        <button onclick="game.simulatePhase('perbani', this)" class="sim-btn bg-ocean px-3 py-2 border border-tealish rounded-lg hover:bg-tealish/30 transition flex flex-col items-center flex-1">
+                            <span class="text-2xl mb-1">🌓</span><span class="text-xs font-bold">Perbani</span>
+                        </button>
+                        <button onclick="game.simulatePhase('purnama', this)" class="sim-btn bg-ocean px-3 py-2 border border-tealish rounded-lg hover:bg-tealish/30 transition flex flex-col items-center flex-1">
+                            <span class="text-2xl mb-1">🌕</span><span class="text-xs font-bold">Purnama</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Visual Matahari-Bumi-Bulan -->
+                    <div class="bg-navy rounded-lg border border-tealish h-40 mb-4 flex items-center justify-center relative overflow-hidden">
+                        <div class="absolute left-2 w-10 h-10 bg-yellow-400 rounded-full shadow-[0_0_20px_#F9C80E] flex items-center justify-center text-yellow-900 font-bold text-xs z-10">MTH</div>
+                        <div class="absolute w-8 h-8 bg-blue-500 rounded-full z-10 border border-blue-300 shadow-inner"></div>
+                        <div id="sim-orbit" class="w-[60%] max-w-[150px] aspect-square rounded-full border border-dashed border-gray-600 absolute transition-transform duration-500 ease-in-out z-0">
+                            <div class="absolute top-1/2 -right-3 -translate-y-1/2 w-6 h-6 bg-gray-200 rounded-full shadow-[0_0_10px_white]"></div>
+                        </div>
+                    </div>
+
+                    <!-- Visual Tinggi Air -->
+                    <div class="bg-ocean rounded-lg border border-tealish h-24 flex flex-col justify-end relative overflow-hidden">
+                        <div class="absolute top-2 left-2 text-[10px] text-gray-400 z-10 bg-slate-900/50 px-1 rounded">Tinggi Air (Simulasi)</div>
+                        <div id="sim-wave" class="wave-container"><div class="wave"></div></div>
+                    </div>
+                </div>
+
+                <!-- Case Files Kanan -->
+                <div class="flex-1 flex flex-col gap-4 justify-center">
+                    <div id="case-file-1" class="card-detective p-5 border-l-4 border-l-accent opacity-50 pointer-events-none transition-all duration-300 relative shadow-md">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-bold text-lg"><i class="fa-solid fa-folder-open text-accent mr-2"></i> Case File #01</h3>
+                            <span class="status-badge text-xs bg-slate-700 px-2 py-1 rounded font-bold">TERKUNCI</span>
+                        </div>
+                        <div class="bg-slate-900/80 p-3 rounded text-sm mb-4 border border-tealish">
+                            <p class="mb-1"><span class="text-gray-400">FASE:</span> Purnama (Segaris).</p>
+                            <p><span class="text-gray-400">DATA:</span> Rentang pasut membesar maksimal.</p>
+                        </div>
+                        <p class="mb-3 text-sm font-bold">Kondisi apakah ini?</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="game.solveCase(1, 'Spring tide')" class="bg-tealish hover:bg-cyan hover:text-navy font-bold py-2 rounded transition">Spring Tide</button>
+                            <button onclick="game.solveCase(1, 'Neap tide')" class="bg-tealish hover:bg-cyan hover:text-navy font-bold py-2 rounded transition">Neap Tide</button>
+                        </div>
+                    </div>
+
+                    <div id="case-file-2" class="card-detective p-5 border-l-4 border-l-cyan opacity-50 pointer-events-none transition-all duration-300 relative shadow-md">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-bold text-lg"><i class="fa-solid fa-folder-open text-cyan mr-2"></i> Case File #02</h3>
+                            <span class="status-badge text-xs bg-slate-700 px-2 py-1 rounded font-bold">TERKUNCI</span>
+                        </div>
+                        <div class="bg-slate-900/80 p-3 rounded text-sm mb-4 border border-tealish">
+                            <p class="mb-1"><span class="text-gray-400">FASE:</span> Perbani (Sudut 90°).</p>
+                            <p><span class="text-gray-400">DATA:</span> Rentang pasut mengecil.</p>
+                        </div>
+                        <p class="mb-3 text-sm font-bold">Kondisi apakah ini?</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="game.solveCase(2, 'Spring tide')" class="bg-tealish hover:bg-cyan hover:text-navy font-bold py-2 rounded transition">Spring Tide</button>
+                            <button onclick="game.solveCase(2, 'Neap tide')" class="bg-tealish hover:bg-cyan hover:text-navy font-bold py-2 rounded transition">Neap Tide</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button id="btn-next-sim" onclick="nav.next()" class="btn-primary w-full py-4 rounded-xl hidden font-bold text-lg shadow-lg shadow-cyan/20">MENUJU FINAL INVESTIGATION</button>
+        </section>
+
+        <section id="screen-10" class="screen flex-col w-full max-w-4xl">
+            <div class="text-center mb-6">
+                <h2 class="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-accent to-white tracking-wide">🏆 FINAL INVESTIGATION</h2>
+                <p class="text-gray-300 mt-2">Pecahkan Misteri Pasang Surut Berdasarkan Data Rahasia</p>
+                <div class="bg-yellow-900/30 border border-yellow-500/50 text-yellow-200 text-[10px] md:text-xs px-2 py-1 rounded inline-block mt-3">⚠️ DATA SIMULASI UNTUK PEMBELAJARAN</div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Data Tabel -->
+                <div class="card-detective p-0 overflow-hidden flex flex-col border border-tealish">
+                    <h3 class="font-bold p-4 bg-ocean/80 border-b border-tealish"><i class="fa-solid fa-table-list text-cyan mr-2"></i> Log Observasi (Bulan Ini)</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-center">
+                            <thead class="text-xs text-gray-400 uppercase bg-slate-800">
+                                <tr><th class="px-2 py-3">Hari</th><th class="px-2 py-3">Pasang (m)</th><th class="px-2 py-3">Surut (m)</th></tr>
+                            </thead>
+                            <tbody class="data-font">
+                                <tr class="border-b border-tealish/50"><td class="px-2 py-3">1</td><td class="text-cyan">1.8</td><td class="text-danger">0.3</td></tr>
+                                <tr class="border-b border-tealish/50 bg-ocean/30"><td class="px-2 py-3">8</td><td class="text-cyan">1.3</td><td class="text-danger">0.7</td></tr>
+                                <tr class="border-b border-accent bg-accent/10 font-bold text-white shadow-inner transform scale-[1.02] border-y-2" id="target-row">
+                                    <td class="px-2 py-3 text-accent"><i class="fa-solid fa-circle-right mr-1"></i> 15</td><td class="text-cyan text-lg">1.9</td><td class="text-danger text-lg">0.2</td>
+                                </tr>
+                                <tr class="border-b border-tealish/50 bg-ocean/30"><td class="px-2 py-3">22</td><td class="text-cyan">1.2</td><td class="text-danger">0.8</td></tr>
+                                <tr><td class="px-2 py-3">29</td><td class="text-cyan">1.8</td><td class="text-danger">0.3</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Panel Logika -->
+                <div class="flex flex-col gap-4">
+                    <div class="card-detective p-5 transition-all duration-300" id="final-task-1">
+                        <h4 class="font-bold text-accent mb-2">1. Kalkulasi Data Hari ke-15</h4>
+                        <p class="text-sm mb-3 text-gray-300">Hitung rentang pasut: (Tinggi Pasang - Tinggi Surut)</p>
+                        <div class="flex items-center gap-2 data-font text-sm md:text-base">
+                            <span class="bg-ocean px-3 py-2 rounded border border-cyan text-cyan">1.9</span> <span class="text-gray-400">-</span> 
+                            <span class="bg-ocean px-3 py-2 rounded border border-danger text-danger">0.2</span> <span class="text-gray-400">=</span> 
+                            <input type="number" step="0.1" id="final-calc-input" class="bg-slate-900 border-2 border-tealish rounded px-2 py-2 w-24 text-center font-bold focus:outline-none focus:border-accent text-white" placeholder="?"> <span class="text-gray-400">m</span>
+                        </div>
+                        <button onclick="game.checkFinalCalc()" class="btn-secondary w-full mt-4 py-2 rounded font-bold">CEK HASIL</button>
+                    </div>
+
+                    <div class="card-detective p-5 opacity-40 pointer-events-none transition-all duration-300" id="final-task-2">
+                        <h4 class="font-bold text-accent mb-2">2. Kesimpulan Kondisi</h4>
+                        <p class="text-sm mb-3 text-gray-300">Apakah kondisi pada Hari ke-15 (berdasarkan rentang)?</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="game.checkFinalCondition('spring')" class="bg-ocean border border-tealish hover:bg-cyan hover:text-navy p-3 rounded font-bold transition text-sm">Spring Tide</button>
+                            <button onclick="game.checkFinalCondition('neap')" class="bg-ocean border border-tealish hover:bg-cyan hover:text-navy p-3 rounded font-bold transition text-sm">Neap Tide</button>
+                        </div>
+                    </div>
+
+                    <div class="card-detective p-5 opacity-40 pointer-events-none transition-all duration-300 border-l-4 border-l-purple-500" id="final-task-3">
+                        <h4 class="font-bold text-purple-400 mb-2">3. Tantangan Logika (15 Poin)</h4>
+                        <p class="text-sm mb-4 text-gray-300 leading-snug">Jika dua pantai berbeda mengalami fase Bulan yang sama, apakah tinggi pasang maksimal di kedua pantai <strong>pasti selalu sama</strong>?</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="game.checkFinalLogic(true)" class="bg-ocean border border-tealish hover:bg-purple-500 hover:text-white p-3 rounded font-bold transition text-sm">Ya, Pasti Sama</button>
+                            <button onclick="game.checkFinalLogic(false)" class="bg-ocean border border-tealish hover:bg-purple-500 hover:text-white p-3 rounded font-bold transition text-sm">Tidak Selalu</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <button id="btn-finish" onclick="nav.next()" class="btn-primary w-full py-5 rounded-xl mt-8 hidden font-black text-xl uppercase tracking-widest shadow-[0_0_20px_rgba(249,200,14,0.4)] animate-pulse">TUTUP KASUS</button>
+        </section>
+
+        <section id="screen-11" class="screen flex-col items-center w-full max-w-3xl text-center">
+            <h2 class="text-4xl md:text-5xl font-black mb-2 text-cyan drop-shadow-md">🎉 INVESTIGASI SELESAI!</h2>
+            <p class="text-xl text-gray-300 mb-8">Kasus berhasil ditutup, Detektif.</p>
+            
+            <div class="relative w-48 h-48 mb-8 flex items-center justify-center">
+                <svg class="absolute inset-0 w-full h-full transform -rotate-90 drop-shadow-[0_0_10px_rgba(91,192,190,0.5)]" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="#1C2541" stroke-width="8"></circle>
+                    <circle id="score-circle" cx="50" cy="50" r="45" fill="none" stroke="#5BC0BE" stroke-width="8" stroke-dasharray="283" stroke-dashoffset="283" class="transition-all duration-1000 ease-out" stroke-linecap="round"></circle>
+                </svg>
+                <div class="relative z-10 flex flex-col items-center">
+                    <span class="text-5xl font-black text-white" id="final-score">0</span>
+                    <span class="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">/ 100 Poin</span>
+                </div>
+            </div>
+
+            <!-- Tanda Pencapaian (Badges) -->
+            <div class="w-full mb-10">
+                <h3 class="font-bold text-xl mb-6 text-accent uppercase tracking-widest"><i class="fa-solid fa-medal mr-2"></i> Lencana Diperoleh</h3>
+                <div class="flex flex-wrap justify-center gap-4 md:gap-6" id="badge-container">
+                    <!-- Dimuat via JS -->
+                </div>
+            </div>
+
+            <div class="flex flex-col md:flex-row gap-4 w-full">
+                <button onclick="nav.next()" class="btn-primary flex-1 py-4 rounded-xl font-bold text-lg">ISI JURNAL REFLEKSI</button>
+                <button onclick="ui.showModal('modal-reset')" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 flex-1 py-4 rounded-xl font-bold transition text-lg"><i class="fa-solid fa-rotate-right mr-2"></i> ULANGI MISI</button>
+            </div>
+        </section>
+
+        <section id="screen-12" class="screen flex-col w-full max-w-4xl">
+            <h2 class="text-3xl md:text-4xl font-bold mb-3"><i class="fa-solid fa-book-journal-whills mr-3 text-cyan"></i> JURNAL REFLEKSI</h2>
+            <p class="text-gray-300 mb-8 text-lg">Tuliskan kesimpulan investigasimu sebelum menyerahkan laporan.</p>
+            
+            <div class="space-y-4 mb-8">
+                <div class="card-detective p-5 focus-within:border-cyan transition">
+                    <label class="block font-bold mb-3 text-accent">1. Apa yang menyebabkan terjadinya pasang surut air laut?</label>
+                    <textarea class="w-full bg-ocean border border-tealish rounded-lg p-4 text-white focus:outline-none focus:border-cyan resize-y min-h-[80px]" placeholder="Ketik jawabanmu..."></textarea>
+                </div>
+                <div class="card-detective p-5 focus-within:border-cyan transition">
+                    <label class="block font-bold mb-3 text-accent">2. Apa perbedaan utama antara Spring Tide dan Neap Tide?</label>
+                    <textarea class="w-full bg-ocean border border-tealish rounded-lg p-4 text-white focus:outline-none focus:border-cyan resize-y min-h-[80px]" placeholder="Ketik jawabanmu..."></textarea>
+                </div>
+                <div class="card-detective p-5 focus-within:border-cyan transition">
+                    <label class="block font-bold mb-3 text-accent">3. Bagaimana fase Bulan membantumu menentukan rentang pasang surut?</label>
+                    <textarea class="w-full bg-ocean border border-tealish rounded-lg p-4 text-white focus:outline-none focus:border-cyan resize-y min-h-[80px]" placeholder="Ketik jawabanmu..."></textarea>
+                </div>
+                <div class="card-detective p-5 focus-within:border-cyan transition">
+                    <label class="block font-bold mb-3 text-accent">4. Mengapa tinggi pasang di Pantai A bisa berbeda dengan Pantai B meski waktu dan fasenya sama?</label>
+                    <textarea class="w-full bg-ocean border border-tealish rounded-lg p-4 text-white focus:outline-none focus:border-cyan resize-y min-h-[80px]" placeholder="Ketik jawabanmu..."></textarea>
+                </div>
+            </div>
+            
+            <button onclick="ui.showModal('modal-peta')" class="btn-primary w-full py-5 rounded-xl font-bold text-xl"><i class="fa-solid fa-map-location-dot mr-2"></i> KEMBALI KE PETA MISI</button>
+        </section>
+
+    </main>
+
+    <footer class="bg-ocean border-t border-tealish mt-auto p-4 hidden md:block" id="bottom-nav">
+        <div class="container mx-auto flex justify-between items-center">
+            <button onclick="nav.prev()" class="btn-secondary px-6 py-2 rounded font-bold text-sm" id="btn-prev"><i class="fa-solid fa-arrow-left mr-2"></i> SEBELUMNYA</button>
+            <span class="text-xs text-gray-500 font-mono">ID Investigasi: ML4-PASUT-2024</span>
+            <button onclick="nav.next()" class="btn-secondary px-6 py-2 rounded font-bold text-sm" id="btn-next-footer">BERIKUTNYA <i class="fa-solid fa-arrow-right ml-2"></i></button>
+        </div>
+    </footer>
+
+    <!-- Universal Notification Modal (Optimized for Speed) -->
+    <div id="notification-box" class="bg-slate-900 border-2 rounded-xl p-6 max-w-sm w-[90%] text-center shadow-[0_10px_40px_rgba(0,0,0,0.8)] flex flex-col items-center">
+        <div id="notif-icon" class="text-5xl mb-3 drop-shadow-md"></div>
+        <h3 id="notif-title" class="text-xl font-black mb-2 uppercase tracking-wide"></h3>
+        <p id="notif-msg" class="text-gray-300 mb-6 text-sm md:text-base leading-relaxed"></p>
+        <button onclick="ui.hideNotif()" class="bg-slate-800 hover:bg-slate-700 text-white px-8 py-3 rounded-xl font-bold w-full uppercase tracking-wider text-sm transition">Lanjutkan</button>
+    </div>
+    <div id="modal-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden" onclick="ui.hideNotif()"></div>
+
+    <!-- Peta Misi Modal -->
+    <div id="modal-peta" class="fixed inset-0 bg-black/95 z-50 hidden flex-col items-center justify-center p-4 transition-opacity">
+        <div class="card-detective max-w-md w-full p-6 text-center relative border-cyan">
+            <button onclick="ui.hideModal('modal-peta')" class="absolute top-4 right-4 text-gray-400 hover:text-white bg-slate-800 rounded-full w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-2xl font-bold mb-6 text-cyan"><i class="fa-solid fa-map-location-dot mr-2"></i> PETA MISI</h2>
+            <div class="flex flex-col gap-3">
+                <div class="bg-slate-800/50 p-3 rounded text-left flex justify-between items-center opacity-50"><span class="font-mono text-sm">01: Siang & Malam</span> <i class="fa-solid fa-check text-green-400"></i></div>
+                <div class="bg-slate-800/50 p-3 rounded text-left flex justify-between items-center opacity-50"><span class="font-mono text-sm">02: Fase Bulan</span> <i class="fa-solid fa-check text-green-400"></i></div>
+                <div class="bg-slate-800/50 p-3 rounded text-left flex justify-between items-center opacity-50"><span class="font-mono text-sm">03: Gerhana</span> <i class="fa-solid fa-check text-green-400"></i></div>
+                <div class="bg-cyan/20 border border-cyan p-3 rounded text-left flex justify-between items-center transform scale-105">
+                    <span class="font-bold text-cyan font-mono text-sm">04: Pasang Surut</span><i class="fa-solid fa-location-dot text-cyan animate-bounce"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Petunjuk Modal -->
+    <div id="modal-petunjuk" class="fixed inset-0 bg-black/95 z-50 hidden flex-col items-center justify-center p-4">
+        <div class="card-detective max-w-lg w-full p-6 relative border-accent">
+            <button onclick="ui.hideModal('modal-petunjuk')" class="absolute top-4 right-4 text-gray-400 hover:text-white bg-slate-800 rounded-full w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-2xl font-bold mb-4 text-accent"><i class="fa-solid fa-book mr-2"></i> BUKU PANDUAN</h2>
+            <ul class="list-none space-y-3 text-sm text-gray-200">
+                <li class="flex gap-2"><i class="fa-solid fa-caret-right text-accent mt-1"></i><span><strong>Gravitasi:</strong> Tarikan Bulan dan Matahari memengaruhi air laut.</span></li>
+                <li class="flex gap-2"><i class="fa-solid fa-caret-right text-accent mt-1"></i><span><strong>Spring Tide:</strong> Rentang pasang-surut besar (Maksimal). Posisi segaris (Baru/Purnama).</span></li>
+                <li class="flex gap-2"><i class="fa-solid fa-caret-right text-accent mt-1"></i><span><strong>Neap Tide:</strong> Rentang pasang-surut kecil (Minimal). Posisi tegak lurus (Perbani).</span></li>
+                <li class="flex gap-2 mt-4 pt-4 border-t border-tealish text-gray-400 text-xs"><i class="fa-solid fa-circle-info mt-1"></i><span>Catatan: Data angka adalah simulasi pembelajaran.</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Reset Modal -->
+    <div id="modal-reset" class="fixed inset-0 bg-black/95 z-50 hidden flex-col items-center justify-center p-4">
+        <div class="card-detective max-w-sm w-full p-6 text-center relative border-danger">
+            <h2 class="text-xl font-bold mb-4 text-white">Mulai Ulang Investigasi?</h2>
+            <p class="text-sm text-gray-400 mb-6">Semua progres dan skormu akan direset ke nol.</p>
+            <div class="flex gap-3">
+                <button onclick="ui.hideModal('modal-reset')" class="btn-secondary flex-1 py-3 rounded-lg font-bold">Batal</button>
+                <button onclick="location.reload()" class="bg-danger hover:bg-red-600 text-white flex-1 py-3 rounded-lg font-bold transition">Ya, Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. STATE MANAGEMENT
+        const state = {
+            currentScreen: 0,
+            maxScreens: 11, // 0 to 11
+            score: 0,
+            scores: { obs: 0, trend: 0, match: 0, tf: 0, dnd: 0, pg: 0, sim: 10, final: 0 },
+            badges: [],
+            isAnswered: { tf: 0, pg: 0 },
+            chartSelectedPt: null,
+            case1Solved: false, case2Solved: false
+        };
+
+        const titles = ["Mulai", "Briefing", "Kuis Diagnostik", "Ruang Detektif", "Membaca Data", "Menyusun Bukti", "Uji Fakta", "Pola Waktu", "Interogasi Data", "Simulator", "Final", "Hasil Akhir", "Refleksi"];
+
+        // 2. UI UTILITIES (Super Fast Response)
+        const ui = {
+            showNotif: (type, msg) => {
+                const box = document.getElementById('notification-box');
+                const overlay = document.getElementById('modal-overlay');
+                const icon = document.getElementById('notif-icon');
+                const title = document.getElementById('notif-title');
+                
+                box.className = 'bg-slate-900 border-2 rounded-xl p-6 max-w-sm w-[90%] text-center shadow-2xl flex flex-col items-center z-50 fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 scale-95 opacity-0 pointer-events-none transition-all duration-150';
+                
+                if (type === 'benar') {
+                    box.classList.add('border-green-500'); icon.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i>';
+                    title.innerText = 'BENAR!'; title.className = 'text-2xl font-black mb-1 text-green-500 tracking-wide';
+                } else if (type === 'hampir') {
+                    box.classList.add('border-accent'); icon.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-accent"></i>';
+                    title.innerText = 'HAMPIR TEPAT'; title.className = 'text-xl font-black mb-1 text-accent tracking-wide';
+                } else {
+                    box.classList.add('border-danger'); icon.innerHTML = '<i class="fa-solid fa-circle-xmark text-danger"></i>';
+                    title.innerText = 'BELUM TEPAT'; title.className = 'text-xl font-black mb-1 text-danger tracking-wide';
+                }
+                
+                document.getElementById('notif-msg').innerText = msg;
+                overlay.classList.remove('hidden');
+                
+                // Trigger reflow untuk animasi CSS instan
+                void box.offsetWidth; 
+                box.classList.add('show');
+            },
+            hideNotif: () => {
+                const box = document.getElementById('notification-box');
+                box.classList.remove('show');
+                document.getElementById('modal-overlay').classList.add('hidden'); // Tanpa delay
+            },
+            showModal: (id) => document.getElementById(id).classList.remove('hidden'),
+            hideModal: (id) => document.getElementById(id).classList.add('hidden'),
+            updateScore: (category, pts) => {
+                if(state.scores[category] === 0) { // Hanya tambah jika belum dinilai
+                    state.scores[category] = pts;
+                    state.score += pts;
+                    document.getElementById('score-display').innerText = `${state.score} PTS`;
+                    
+                    // Logic Badges
+                    if(state.score >= 20 && !state.badges.includes('PEMBACA DATA')) state.badges.push('PEMBACA DATA');
+                    if(state.score >= 50 && !state.badges.includes('DETEKTIF POLA')) state.badges.push('DETEKTIF POLA');
+                    if(state.score >= 80 && !state.badges.includes('PENYELIDIK BULAN')) state.badges.push('PENYELIDIK BULAN');
+                }
+            }
+        };
+
+        const nav = {
+            updateUI: () => {
+                document.querySelectorAll('.screen').forEach((el, index) => {
+                    if (index === state.currentScreen) el.classList.add('active');
+                    else el.classList.remove('active');
+                });
+                
+                document.getElementById('breadcrumb').innerHTML = `Beranda <i class="fa-solid fa-chevron-right text-[10px] mx-1"></i> Misi 4 <i class="fa-solid fa-chevron-right text-[10px] mx-1"></i> <span class="text-cyan font-bold">${titles[state.currentScreen]}</span>`;
+                
+                const pct = (state.currentScreen / state.maxScreens) * 100;
+                document.getElementById('progress-line').style.width = `${pct}%`;
+
+                document.getElementById('btn-prev').style.visibility = state.currentScreen > 0 ? 'visible' : 'hidden';
+                document.getElementById('bottom-nav').style.display = (state.currentScreen === 0 || state.currentScreen === 12) ? 'none' : 'block';
+
+                // Triggers spesifik layar
+                if(state.currentScreen === 4 && !window.chartDrawn) { game.buildChart(); window.chartDrawn = true; }
+                if(state.currentScreen === 5) setTimeout(matchGame.drawLines, 100); // SVG butuh DOM render selesai
+                if(state.currentScreen === 11) game.generateReport();
+            },
+            next: () => { if (state.currentScreen < 12) { state.currentScreen++; nav.updateUI(); window.scrollTo(0,0); } },
+            prev: () => { if (state.currentScreen > 0) { state.currentScreen--; nav.updateUI(); window.scrollTo(0,0); } },
+            goto: (idx) => { state.currentScreen = idx; nav.updateUI(); window.scrollTo(0,0); }
+        };
+
+        const matchGame = {
+            // Master Data (Single Source of Truth)
+            master: [
+                { id: 1, a: "Spring Tide", b: "Rentang pasang-surut BESAR" },
+                { id: 2, a: "Neap Tide", b: "Rentang pasang-surut KECIL" },
+                { id: 3, a: "Pasang", b: "Muka laut NAIK" },
+                { id: 4, a: "Surut", b: "Muka laut TURUN" },
+                { id: 5, a: "Bulan Baru & Purnama", b: "Matahari-Bumi-Bulan SEGARIS" },
+                { id: 6, a: "Perbani", b: "Matahari & Bulan SUDUT 90°" }
+            ],
+            state: { selA: null, selB: null, matchedCount: 0, isEvaluating: false, drawnPairs: [] },
+            
+            init: () => {
+                const colA = document.getElementById('match-col-a');
+                const colB = document.getElementById('match-col-b');
+                
+                // Shuffle untuk tampilan
+                const dataA = [...matchGame.master].sort(() => Math.random() - 0.5);
+                const dataB = [...matchGame.master].sort(() => Math.random() - 0.5);
+
+                dataA.forEach(item => matchGame.renderCard(item, 'a', colA));
+                dataB.forEach(item => matchGame.renderCard(item, 'b', colB));
+
+                // Listener untuk resize layer SVG
+                window.addEventListener('resize', () => {
+                    if (state.currentScreen === 5) matchGame.drawLines();
+                });
+            },
+            
+            renderCard: (item, type, container) => {
+                const card = document.createElement('div');
+                card.className = 'match-card bg-slate-800 p-3 rounded-lg text-center text-sm font-bold shadow-md';
+                if(type==='a') card.classList.replace('bg-slate-800', 'bg-ocean');
+                card.innerText = type === 'a' ? item.a : item.b;
+                card.dataset.id = item.id;
+                card.dataset.type = type;
+                card.addEventListener('click', () => matchGame.handleClick(card));
+                container.appendChild(card);
+            },
+
+            handleClick: (card) => {
+                if (matchGame.state.isEvaluating || card.classList.contains('matched')) return;
+
+                const type = card.dataset.type;
+                if (type === 'a') {
+                    if (matchGame.state.selA) matchGame.state.selA.classList.remove('selected');
+                    matchGame.state.selA = card;
+                } else {
+                    if (matchGame.state.selB) matchGame.state.selB.classList.remove('selected');
+                    matchGame.state.selB = card;
+                }
+                card.classList.add('selected');
+
+                if (matchGame.state.selA && matchGame.state.selB) matchGame.evaluate();
+            },
+
+            evaluate: () => {
+                matchGame.state.isEvaluating = true;
+                const cA = matchGame.state.selA; const cB = matchGame.state.selB;
+                document.querySelectorAll('.match-card').forEach(c => c.style.pointerEvents = 'none');
+
+                if (cA.dataset.id === cB.dataset.id) {
+                    // BENAR (Fast Timeout 200ms)
+                    setTimeout(() => {
+                        cA.classList.replace('selected', 'matched');
+                        cB.classList.replace('selected', 'matched');
+                        
+                        matchGame.state.drawnPairs.push(cA.dataset.id);
+                        matchGame.drawLines();
+                        
+                        matchGame.state.matchedCount++;
+                        matchGame.resetSelection();
+                        
+                        if (matchGame.state.matchedCount === matchGame.master.length) {
+                            ui.updateScore('match', 10);
+                            ui.showNotif('benar', 'Luar biasa! Semua bukti berhasil dihubungkan.');
+                            document.getElementById('btn-next-match').classList.remove('hidden');
+                        }
+                    }, 200);
+                } else {
+                    // SALAH (Visual Feedback Fast)
+                    cA.classList.add('wrong'); cB.classList.add('wrong');
+                    ui.showNotif('salah', 'Bukti tidak relevan. Analisis kembali logika sebab-akibatnya.');
+                    
+                    setTimeout(() => {
+                        cA.classList.remove('selected', 'wrong');
+                        cB.classList.remove('selected', 'wrong');
+                        matchGame.resetSelection();
+                    }, 400); // Harus lebih cepat dari animasi notifikasi
+                }
+            },
+
+            resetSelection: () => {
+                matchGame.state.selA = null; matchGame.state.selB = null;
+                matchGame.state.isEvaluating = false;
+                document.querySelectorAll('.match-card').forEach(c => {
+                    if (!c.classList.contains('matched')) c.style.pointerEvents = 'auto';
+                });
+            },
+
+            drawLines: () => {
+                const svg = document.getElementById('match-lines');
+                const container = document.getElementById('match-container');
+                if(!svg || !container) return;
+                
+                svg.innerHTML = '';
+                const cRect = container.getBoundingClientRect();
+
+                matchGame.state.drawnPairs.forEach(id => {
+                    const elA = document.querySelector(`.match-card[data-id="${id}"][data-type="a"]`);
+                    const elB = document.querySelector(`.match-card[data-id="${id}"][data-type="b"]`);
+                    if(elA && elB) {
+                        const rA = elA.getBoundingClientRect();
+                        const rB = elB.getBoundingClientRect();
+                        
+                        const x1 = rA.right - cRect.left;
+                        const y1 = rA.top - cRect.top + (rA.height / 2);
+                        const x2 = rB.left - cRect.left;
+                        const y2 = rB.top - cRect.top + (rB.height / 2);
+                        
+                        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                        line.setAttribute("x1", x1); line.setAttribute("y1", y1);
+                        line.setAttribute("x2", x2); line.setAttribute("y2", y2);
+                        line.setAttribute("stroke", "#5BC0BE");
+                        line.setAttribute("stroke-width", "3");
+                        line.setAttribute("stroke-dasharray", "6,6");
+                        svg.appendChild(line);
+                    }
+                });
+            }
+        };
+
+        const game = {
+            // Data Soal
+            qDiag: [
+                { q: "Menurutmu, apa yang memengaruhi pasang surut?", o: ["Cahaya Bulan", "Gaya gravitasi Bulan & Matahari", "Suhu laut", "Angin"] },
+                { q: "Apakah pasang surut terjadi karena air laut berpindah mengikuti Bulan secara langsung?", o: ["Ya", "Tidak", "Tidak tahu"] },
+                { q: "Pada fase Bulan apa rentang pasut lebih besar?", o: ["Baru & Purnama", "Perbani", "Sabit", "Semua sama"] },
+                { q: "Apakah semua pantai mengalami tinggi pasang yang persis sama?", o: ["Ya", "Tidak", "Tidak tahu"] }
+            ],
+            qTF: [
+                { s: "Bulan memengaruhi pasang surut melalui gaya gravitasi.", a: true, r: "Fakta! Gravitasi Bulan menarik air di Bumi." },
+                { s: "Pasang surut terjadi karena Bulan menghasilkan cahaya.", a: false, r: "Cahaya tidak punya daya tarik fisik." },
+                { s: "Spring tide terjadi sekitar Bulan Baru dan Purnama.", a: true, r: "Tepat! Garis lurus memperkuat tarikan gravitasi." },
+                { s: "Neap tide berkaitan dengan fase perbani.", a: true, r: "Benar. Sudut 90° membuat gaya saling melemahkan." },
+                { s: "Semua pantai memiliki pola pasang surut yang identik.", a: false, r: "Salah. Bentuk pesisir dan dasar laut memengaruhi tinggi gelombang lokal." }
+            ],
+            qPG: [
+                { q: "Pada kondisi spring tide, apa yang terjadi terhadap rentang pasang-surut?", o: ["Cenderung lebih besar", "Cenderung lebih kecil", "Tidak berubah", "Tidak ada pasang"], a: 0, r: "Gaya gabungan membuat pasang sangat tinggi dan surut sangat rendah (rentang membesar)." },
+                { q: "Fase Bulan apa yang berkaitan dengan spring tide?", o: ["Perbani", "Bulan Baru dan Purnama", "Sabit", "Cembung"], a: 1, r: "Bulan Baru dan Purnama adalah saat posisi Matahari, Bumi, dan Bulan segaris." },
+                { q: "Jika perbedaan tinggi pasang dan surut semakin kecil, kondisi apa yang terjadi?", o: ["Spring tide", "Neap tide", "Gerhana", "Tsunami"], a: 1, r: "Rentang kecil (amplitudo rendah) adalah ciri khas Neap Tide (pasang perbani)." }
+            ],
+            
+            initAll: () => {
+                // Render Kuis Diagnostik
+                const c = document.getElementById('diagnostic-quiz');
+                game.qDiag.forEach((q, i) => {
+                    let html = `<div class="card-detective p-4 border border-tealish/30"><p class="font-bold mb-3 text-white">${i+1}. ${q.q}</p><div class="space-y-2">`;
+                    q.o.forEach((opt, j) => {
+                        html += `<label class="flex items-center gap-3 cursor-pointer p-3 rounded-lg hover:bg-ocean transition bg-slate-800/50 border border-transparent hover:border-cyan"><input type="radio" name="diag_${i}" value="${j}" class="accent-cyan w-4 h-4" onchange="game.checkDiag()"> <span class="text-gray-200">${opt}</span></label>`;
+                    });
+                    html += `</div></div>`; c.innerHTML += html;
+                });
+
+                matchGame.init(); // Init Match Game Refined
+                game.buildDnD();  // Init Tap & Drop Game
+                game.updateTF();  // Init TF
+                game.updatePG();  // Init PG
+
+                nav.updateUI();
+            },
+
+            // --- Diagnostik ---
+            checkDiag: () => {
+                let ans = 0; for(let i=0; i<game.qDiag.length; i++) if(document.querySelector(`input[name="diag_${i}"]:checked`)) ans++;
+                if(ans === game.qDiag.length) { document.getElementById('btn-diagnostic-submit').classList.remove('hidden'); }
+            },
+            submitDiagnostic: () => {
+                ui.showNotif('benar', 'Data tersimpan! Mari mulai investigasi dengan data nyata.');
+                setTimeout(() => nav.next(), 200); // Cepat
+            },
+
+            // --- Chart Interaktif ---
+            chartData: [{t:"00.00",h:0.8},{t:"03.00",h:1.5},{t:"06.00",h:0.9},{t:"09.00",h:0.4},{t:"12.00",h:1.2},{t:"15.00",h:1.7},{t:"18.00",h:1.0},{t:"21.00",h:0.5}],
+            buildChart: () => {
+                const svg = document.getElementById('tide-chart'); const c = document.getElementById('chart-container');
+                if(!svg || !c) return;
+                const w = c.clientWidth; const h = c.clientHeight; const padX = 30; const padY = 30; const maxH = 2.0;
+                
+                const getX = i => padX + (i * ((w - padX * 2) / (game.chartData.length - 1)));
+                const getY = v => (h - padY) - (v / maxH) * (h - padY * 2);
+
+                let html = '';
+                // Grid
+                [0, 0.5, 1.0, 1.5, 2.0].forEach(v => {
+                    const y = getY(v);
+                    html += `<line x1="${padX}" y1="${y}" x2="${w-10}" y2="${y}" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="2,2"/><text x="${padX-5}" y="${y+4}" fill="#94a3b8" font-size="10" text-anchor="end">${v}m</text>`;
+                });
+                game.chartData.forEach((d, i) => {
+                    const x = getX(i); const isT = i === 5;
+                    html += `<line x1="${x}" y1="${h-padY}" x2="${x}" y2="${padY}" stroke="${isT?'rgba(249,200,14,0.3)':'rgba(255,255,255,0.05)'}" stroke-width="${isT?2:1}"/><text x="${x}" y="${h-padY+15}" fill="${isT?'#F9C80E':'#94a3b8'}" font-size="10" text-anchor="middle" font-weight="${isT?'bold':'normal'}">${d.t}</text>`;
+                });
+
+                // Path
+                let dPath = `M ${getX(0)},${getY(game.chartData[0].h)} `;
+                for(let i=1; i<game.chartData.length; i++) {
+                    const px = getX(i-1), py = getY(game.chartData[i-1].h), cx = getX(i), cy = getY(game.chartData[i].h);
+                    dPath += `C ${px+(cx-px)/2},${py} ${cx-(cx-px)/2},${cy} ${cx},${cy} `;
+                }
+                html += `<path d="${dPath}" fill="none" stroke="#5BC0BE" stroke-width="3" stroke-linecap="round"/>`;
+                svg.innerHTML = html;
+
+                // Points (Interactive)
+                const tt = document.getElementById('chart-tooltip');
+                game.chartData.forEach((d, i) => {
+                    const pt = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    pt.setAttribute("cx", getX(i)); pt.setAttribute("cy", getY(d.h)); pt.setAttribute("r", "8");
+                    pt.setAttribute("fill", "#0B132B"); pt.setAttribute("stroke", "#5BC0BE"); pt.setAttribute("stroke-width", "2");
+                    pt.setAttribute("class", "cursor-pointer transition-all hover:fill-accent hover:stroke-accent pointer-events-auto");
+                    
+                    // Events (Mobile & Desktop friendly)
+                    const showData = () => {
+                        state.chartSelectedPt = i;
+                        document.getElementById('obs-result').innerHTML = `Waktu: <strong class="text-cyan">${d.t}</strong> | Tinggi: <strong class="text-white">${d.h}m</strong>`;
+                        document.getElementById('btn-confirm-obs').removeAttribute('disabled');
+                        
+                        // Tooltip
+                        tt.style.left = `${getX(i)}px`; tt.style.top = `${getY(d.h)}px`;
+                        document.getElementById('tt-time').innerText = d.t; document.getElementById('tt-height').innerText = `${d.h} m`;
+                        document.getElementById('tt-status').innerText = d.h > 1.2 ? 'PASANG' : (d.h < 0.6 ? 'SURUT' : 'TRANSISI');
+                        tt.classList.remove('hidden');
+                    };
+                    pt.addEventListener('mousedown', showData); pt.addEventListener('touchstart', (e)=>{e.preventDefault(); showData();});
+                    svg.appendChild(pt);
+                });
+            },
+            checkObservation: () => {
+                if(state.chartSelectedPt === 5) { // Index 5 is 15.00
+                    ui.showNotif('benar', 'Tepat! Pada 15.00 tercatat tinggi laut 1.7m (Pasang Tinggi).');
+                    ui.updateScore('obs', 10);
+                    document.getElementById('task-chart-1').classList.add('opacity-50', 'pointer-events-none');
+                    document.getElementById('task-chart-2').classList.remove('opacity-40', 'pointer-events-none');
+                } else ui.showNotif('salah', 'Bukan jam 15.00. Periksa teks berwarna kuning di bawah grafik.');
+            },
+            checkTrend: (ans) => {
+                if(ans === 'pasang') {
+                    ui.showNotif('benar', 'Analisis tajam! Grafik naik dari 0.4m (09.00) ke 1.7m (15.00). Ini adalah fase menuju pasang.');
+                    ui.updateScore('trend', 10);
+                    document.getElementById('task-chart-2').classList.replace('border-l-cyan', 'border-l-green-500');
+                    document.getElementById('btn-next-chart').classList.remove('hidden');
+                } else ui.showNotif('salah', 'Lihat garis antara 09.00 hingga 15.00. Apakah garisnya naik atau turun?');
+            },
+
+            // --- True/False ---
+            updateTF: () => {
+                if(state.isAnswered.tf < game.qTF.length) {
+                    document.getElementById('tf-progress').innerText = `FAKTA ${state.isAnswered.tf + 1} / ${game.qTF.length}`;
+                    document.getElementById('tf-statement').innerText = `"${game.qTF[state.isAnswered.tf].s}"`;
+                    document.getElementById('tf-bar').style.width = `${((state.isAnswered.tf)/game.qTF.length)*100}%`;
+                }
+            },
+            answerTF: (ans) => {
+                const q = game.qTF[state.isAnswered.tf];
+                if(ans === q.a) { ui.showNotif('benar', q.r); state.score += 3; } 
+                else ui.showNotif('salah', q.r);
+                
+                document.getElementById('score-display').innerText = `${state.score} PTS`;
+                state.isAnswered.tf++;
+                
+                if(state.isAnswered.tf >= game.qTF.length) {
+                    document.getElementById('btn-next-tf').classList.remove('hidden');
+                    document.getElementById('tf-statement').innerHTML = "<span class='text-cyan'>Sesi Uji Fakta Selesai!</span>";
+                    document.getElementById('tf-bar').style.width = `100%`;
+                    ui.updateScore('tf', 0); // Kunci penambahan score manual
+                } else game.updateTF(); 
+            },
+
+            // --- Tap to Place (Drag & Drop replacement for better mobile UX) ---
+            dndState: { selId: null, selType: null, placed: 0 },
+            buildDnD: () => {
+                const src = document.getElementById('drag-sources');
+                const cards = [
+                    {id: 'c1', type: 'spring', label: 'Rentang Besar'}, {id: 'c2', type: 'neap', label: 'Rentang Kecil'},
+                    {id: 'c3', type: 'spring', label: 'Rentang Besar'}, {id: 'c4', type: 'neap', label: 'Rentang Kecil'}
+                ].sort(() => Math.random() - 0.5);
+                
+                cards.forEach(c => {
+                    const isS = c.type === 'spring';
+                    src.innerHTML += `
+                    <div id="${c.id}" class="drag-card bg-slate-800 border-2 border-slate-600 rounded p-2 w-28 text-center" onclick="game.selectCard('${c.id}', '${c.type}')">
+                        <div class="text-[10px] text-gray-300 mb-1">${c.label}</div>
+                        <svg width="80" height="40" viewBox="0 0 100 40"><path d="${isS ? 'M0,30 Q25,5 50,30 T100,30' : 'M0,25 Q25,15 50,25 T100,25'}" fill="none" stroke="${isS ? '#F9C80E' : '#5BC0BE'}" stroke-width="4" stroke-linecap="round"/></svg>
+                    </div>`;
+                });
+            },
+            selectCard: (id, type) => {
+                document.querySelectorAll('.drag-card').forEach(el => el.classList.remove('active-drag'));
+                game.dndState.selId = id; game.dndState.selType = type;
+                document.getElementById(id).classList.add('active-drag');
+                document.querySelectorAll('.drop-zone').forEach(el => {
+                    if(el.innerHTML.includes('Area Kosong')) el.classList.add('highlight');
+                });
+            },
+            placeCard: (day) => {
+                if(!game.dndState.selId) { ui.showNotif('hampir', 'Pilih (klik) kartu grafik di bawah terlebih dahulu!'); return; }
+                const tgt = document.getElementById(`drop-${day}`);
+                const expType = (day === 1 || day === 3) ? 'spring' : 'neap'; // Baru(1), Purnama(3) = Spring
+                
+                if(game.dndState.selType === expType) {
+                    const card = document.getElementById(game.dndState.selId);
+                    card.classList.remove('active-drag'); card.removeAttribute('onclick');
+                    tgt.innerHTML = ''; tgt.appendChild(card);
+                    tgt.classList.replace('border-dashed', 'border-solid'); tgt.style.borderColor = '#5BC0BE';
+                    
+                    game.dndState.selId = null;
+                    document.querySelectorAll('.drop-zone').forEach(el => el.classList.remove('highlight'));
+                    
+                    game.dndState.placed++;
+                    if(game.dndState.placed === 4) {
+                        ui.updateScore('dnd', 15);
+                        ui.showNotif('benar', 'Tepat sekali! Kamu berhasil merekonstruksi pola pasang-surut sebulan penuh berdasarkan fase bulan.');
+                        document.getElementById('btn-next-dnd').classList.remove('hidden');
+                    }
+                } else {
+                    ui.showNotif('salah', 'Kurang tepat. Cek kembali, apakah fase bulan pada hari tersebut menghasilkan rentang maksimal atau minimal?');
+                    document.querySelectorAll('.drop-zone').forEach(el => el.classList.remove('highlight'));
+                    document.getElementById(game.dndState.selId).classList.remove('active-drag');
+                    game.dndState.selId = null;
+                }
+            },
+
+            // --- Pilihan Ganda (PG) ---
+            updatePG: () => {
+                if(state.isAnswered.pg < game.qPG.length) {
+                    document.getElementById('pg-progress').innerText = `PERTANYAAN ${state.isAnswered.pg + 1} / ${game.qPG.length + 1}`;
+                    document.getElementById('pg-question-area').innerText = game.qPG[state.isAnswered.pg].q;
+                    const opts = document.getElementById('pg-options'); opts.innerHTML = '';
+                    game.qPG[state.isAnswered.pg].o.forEach((opt, idx) => {
+                        opts.innerHTML += `<button onclick="game.answerPG(${idx})" class="bg-ocean border border-tealish hover:border-cyan hover:bg-cyan/10 text-left px-5 py-4 rounded-xl transition font-medium">${String.fromCharCode(65+idx)}. ${opt}</button>`;
+                    });
+                }
+            },
+            answerPG: (idx) => {
+                const q = game.qPG[state.isAnswered.pg];
+                if(idx === q.a) { ui.showNotif('benar', q.r); state.score += 3; }
+                else ui.showNotif('salah', `Kurang tepat. ${q.r}`);
+                
+                document.getElementById('score-display').innerText = `${state.score} PTS`;
+                state.isAnswered.pg++;
+                
+                if(state.isAnswered.pg === game.qPG.length) {
+                    // Inject Visual Analysis Question
+                    document.getElementById('pg-progress').innerText = `ANALISIS VISUAL`;
+                    document.getElementById('pg-question-area').innerHTML = `Dari dua grafik di bawah, manakah yang merupakan grafik <strong>Spring Tide</strong>?<br>
+                        <div class="flex gap-4 mt-6 mb-2 justify-center">
+                            <div class="bg-slate-800 p-4 rounded-xl border border-tealish text-center">
+                                <div class="text-sm font-bold text-accent mb-2">Grafik A</div>
+                                <svg width="100" height="50"><path d="M0,25 Q25,0 50,25 T100,25" fill="none" stroke="#F9C80E" stroke-width="3"/></svg>
+                            </div>
+                            <div class="bg-slate-800 p-4 rounded-xl border border-tealish text-center">
+                                <div class="text-sm font-bold text-cyan mb-2">Grafik B</div>
+                                <svg width="100" height="50"><path d="M0,25 Q25,15 50,25 T100,25" fill="none" stroke="#5BC0BE" stroke-width="3"/></svg>
+                            </div>
+                        </div>`;
+                    document.getElementById('pg-options').innerHTML = `
+                        <button onclick="game.answerAnalysis(0)" class="bg-ocean border border-tealish hover:border-cyan hover:bg-cyan/10 text-left px-5 py-4 rounded-xl transition font-medium">Grafik A (Amplitudo/Rentang lebih besar)</button>
+                        <button onclick="game.answerAnalysis(1)" class="bg-ocean border border-tealish hover:border-cyan hover:bg-cyan/10 text-left px-5 py-4 rounded-xl transition font-medium">Grafik B (Amplitudo/Rentang lebih kecil)</button>`;
+                } else game.updatePG();
+            },
+            answerAnalysis: (ans) => {
+                if(ans === 0) {
+                    ui.showNotif('benar', 'Tepat! Spring Tide memiliki ciri khas rentang pasang-surut yang paling besar secara visual.');
+                    ui.updateScore('pg', 10);
+                    document.getElementById('btn-next-pg').classList.remove('hidden');
+                } else ui.showNotif('salah', 'Ingat definisi Spring Tide: Pasang sangat tinggi dan surut sangat rendah. Pilih grafik yang jarak vertikal gelombangnya paling lebar.');
+            },
+
+            // --- Simulator ---
+            simulatePhase: (phase, btnEl) => {
+                document.querySelectorAll('.sim-btn').forEach(b => b.classList.remove('border-cyan', 'bg-tealish/30', 'ring-2', 'ring-cyan'));
+                btnEl.classList.add('border-cyan', 'bg-tealish/30', 'ring-2', 'ring-cyan');
+
+                const orbit = document.getElementById('sim-orbit'); const wave = document.querySelector('.wave');
+                
+                if(phase === 'baru') { orbit.style.transform = 'rotate(0deg)'; wave.style.transform = 'scaleY(1.8) translateY(10%)'; }
+                else if (phase === 'perbani') { orbit.style.transform = 'rotate(-90deg)'; wave.style.transform = 'scaleY(0.5) translateY(-25%)'; }
+                else if (phase === 'purnama') { orbit.style.transform = 'rotate(-180deg)'; wave.style.transform = 'scaleY(1.8) translateY(10%)'; }
+
+                // Case Unlocking Logic
+                if(phase === 'purnama') {
+                    const cf1 = document.getElementById('case-file-1');
+                    cf1.classList.remove('opacity-50', 'pointer-events-none');
+                    cf1.querySelector('.status-badge').className = "status-badge text-xs bg-accent text-navy font-bold px-2 py-1 rounded";
+                    cf1.querySelector('.status-badge').innerText = "DIBUKA";
+                }
+                if(phase === 'perbani' && state.case1Solved) {
+                    const cf2 = document.getElementById('case-file-2');
+                    cf2.classList.remove('opacity-50', 'pointer-events-none');
+                    cf2.querySelector('.status-badge').className = "status-badge text-xs bg-cyan text-navy font-bold px-2 py-1 rounded";
+                    cf2.querySelector('.status-badge').innerText = "DIBUKA";
+                }
+            },
+            solveCase: (caseNum, ans) => {
+                if(caseNum === 1 && ans === 'Spring tide') {
+                    ui.showNotif('benar', 'Kasus 01 Selesai! Fase Purnama = Posisi Segaris = Spring Tide (Rentang Besar).');
+                    state.case1Solved = true;
+                    document.querySelector('#case-file-1 .status-badge').className = "status-badge text-xs bg-green-500 text-white font-bold px-2 py-1 rounded";
+                    document.querySelector('#case-file-1 .status-badge').innerText = "SELESAI";
+                    ui.showNotif('benar', 'Petunjuk: Klik fase PERBANI di pengendali simulator untuk membuka Kasus #02.');
+                } else if (caseNum === 2 && ans === 'Neap tide') {
+                    ui.showNotif('benar', 'Kasus 02 Selesai! Fase Perbani = Sudut 90° = Neap Tide (Rentang Kecil).');
+                    state.case2Solved = true;
+                    document.querySelector('#case-file-2 .status-badge').className = "status-badge text-xs bg-green-500 text-white font-bold px-2 py-1 rounded";
+                    document.querySelector('#case-file-2 .status-badge').innerText = "SELESAI";
+                    document.getElementById('btn-next-sim').classList.remove('hidden');
+                    ui.updateScore('sim', 10);
+                } else ui.showNotif('salah', 'Perhatikan data rentangnya. Apakah membesar (Spring) atau mengecil (Neap)?');
+            },
+
+            // --- Final Case ---
+            checkFinalCalc: () => {
+                const val = parseFloat(document.getElementById('final-calc-input').value);
+                if(Math.abs(val - 1.7) < 0.05) {
+                    ui.showNotif('benar', 'Kalkulasi akurat! Rentangnya adalah 1.7 meter.');
+                    document.getElementById('final-task-1').classList.replace('opacity-100', 'opacity-50');
+                    document.getElementById('final-task-1').classList.add('pointer-events-none');
+                    document.getElementById('final-task-2').classList.remove('opacity-40', 'pointer-events-none');
+                } else ui.showNotif('salah', 'Hitung: 1.9 (Pasang) dikurangi 0.2 (Surut).');
+            },
+            checkFinalCondition: (ans) => {
+                if(ans === 'spring') {
+                    ui.showNotif('benar', 'Logika tepat! Rentang 1.7m tergolong sangat besar (maksimal). Ini adalah bukti terjadinya Spring Tide.');
+                    document.getElementById('final-task-2').classList.replace('opacity-100', 'opacity-50');
+                    document.getElementById('final-task-2').classList.add('pointer-events-none');
+                    document.getElementById('final-task-3').classList.remove('opacity-40', 'pointer-events-none');
+                } else ui.showNotif('salah', 'Bandingkan dengan hari ke-8 (rentang 0.6m). 1.7m adalah rentang maksimal. Ingat ciri-ciri Spring Tide.');
+            },
+            checkFinalLogic: (isSame) => {
+                if(!isSame) {
+                    ui.showNotif('benar', 'Tepat Sekali! Karakteristik lokal seperti bentuk pantai dan kedalaman laut sangat memengaruhi gelombang pasang, sehingga tingginya berbeda-beda antar wilayah.');
+                    document.getElementById('final-task-3').classList.replace('opacity-100', 'opacity-50');
+                    document.getElementById('final-task-3').classList.add('pointer-events-none');
+                    ui.updateScore('final', 15);
+                    document.getElementById('btn-finish').classList.remove('hidden');
+                    if(!state.badges.includes('DETEKTIF PASANG SURUT')) state.badges.push('DETEKTIF PASANG SURUT');
+                } else ui.showNotif('hampir', 'Gravitasi bulan memang berlaku secara global. Namun, apakah bentuk geografis pantai A dan pantai B memengaruhi bagaimana air laut merespons?');
+            },
+
+            // --- Hasil Akhir ---
+            generateReport: () => {
+                document.getElementById('final-score').innerText = state.score;
+                const c = document.getElementById('score-circle');
+                c.style.strokeDashoffset = 283 - (state.score / 100) * 283;
+                c.style.stroke = state.score < 60 ? '#FF6B6B' : (state.score < 80 ? '#F9C80E' : '#5BC0BE');
+
+                const bc = document.getElementById('badge-container'); bc.innerHTML = '';
+                const icons = {'PEMBACA DATA':'fa-chart-pie text-cyan','DETEKTIF POLA':'fa-magnifying-glass text-yellow-400','PENYELIDIK BULAN':'fa-moon text-gray-300','DETEKTIF PASANG SURUT':'fa-trophy text-accent'};
+                state.badges.forEach(b => {
+                    bc.innerHTML += `<div class="bg-ocean border border-tealish p-4 rounded-xl flex flex-col items-center w-28 md:w-32 shadow-lg"><i class="fa-solid ${icons[b]} text-3xl mb-2 drop-shadow-md"></i><span class="text-[10px] md:text-xs font-bold text-center uppercase leading-tight">${b}</span></div>`;
+                });
+            }
+        };
+
+        // Window Event Fixes
+        window.addEventListener('resize', () => {
+            if(state.currentScreen === 4 && window.chartDrawn) { clearTimeout(window.rsTmr); window.rsTmr = setTimeout(game.buildChart, 100); }
+        });
+
+        // Initialize App
+        window.onload = game.initAll;
+    </script>
+</body>
+</html>
